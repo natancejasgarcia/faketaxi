@@ -36,6 +36,7 @@ export function useStats(referenceDate: Date = new Date()) {
 
   return {
     weekStats,
+    weekRides: weekRides ?? [],
     monthStats,
     week,
     month,
