@@ -3,6 +3,8 @@ import './globals.css'
 import { Toaster } from 'react-hot-toast'
 import BottomNav from '@/components/BottomNav'
 
+export const dynamic = 'force-dynamic'
+
 export const metadata: Metadata = {
   title: 'FakeTaxi – Mis Carreras',
   description: 'Registra tus carreras de taxi rápidamente',
