@@ -1,0 +1,1 @@
+self.__REACT_LOADABLE_MANIFEST="{\"app\\\\stats\\\\page.tsx -> @/components/WeeklyChart\":{\"id\":\"app\\\\stats\\\\page.tsx -> @/components/WeeklyChart\",\"files\":[\"static/chunks/_app-pages-browser_components_WeeklyChart_tsx.js\"]}}"
