@@ -45,8 +45,8 @@ export default function HistorialPage() {
         </h2>
 
         {isLoading ? (
-          <div className="flex flex-col gap-2">
-            {[1, 2, 3].map((i) => (
+          <div className="grid grid-cols-2 gap-3">
+            {[1, 2, 3, 4].map((i) => (
               <div key={i} className="h-16 animate-pulse rounded-2xl bg-[#161b22]" />
             ))}
           </div>
@@ -56,14 +56,44 @@ export default function HistorialPage() {
             <p className="text-sm">Sin carreras este día</p>
           </div>
         ) : (
-          <div className="flex flex-col gap-2">
-            {rides.map((ride) => (
-              <RideCard
-                key={ride.id}
-                ride={ride}
-                onDelete={(id) => setPendingDelete(id)}
-              />
-            ))}
+          <div className="grid grid-cols-2 gap-3">
+            {/* Efectivo column */}
+            <div className="flex flex-col gap-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-[#3fb950]">Efectivo</p>
+              {rides.filter((r) => r.payment_method === 'cash').length === 0 ? (
+                <p className="text-xs text-[#8b949e]">—</p>
+              ) : (
+                rides
+                  .filter((r) => r.payment_method === 'cash')
+                  .map((ride) => (
+                    <RideCard
+                      key={ride.id}
+                      ride={ride}
+                      onDelete={(id) => setPendingDelete(id)}
+                      hideBadge
+                    />
+                  ))
+              )}
+            </div>
+
+            {/* Tarjeta column */}
+            <div className="flex flex-col gap-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-[#58a6ff]">Tarjeta</p>
+              {rides.filter((r) => r.payment_method !== 'cash').length === 0 ? (
+                <p className="text-xs text-[#8b949e]">—</p>
+              ) : (
+                rides
+                  .filter((r) => r.payment_method !== 'cash')
+                  .map((ride) => (
+                    <RideCard
+                      key={ride.id}
+                      ride={ride}
+                      onDelete={(id) => setPendingDelete(id)}
+                      hideBadge
+                    />
+                  ))
+              )}
+            </div>
           </div>
         )}
       </div>

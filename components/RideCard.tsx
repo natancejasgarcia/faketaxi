@@ -7,9 +7,10 @@ import { formatTime, formatAmount } from '@/lib/utils'
 interface Props {
   ride: Ride
   onDelete: (id: string) => void
+  hideBadge?: boolean
 }
 
-export default function RideCard({ ride, onDelete }: Props) {
+export default function RideCard({ ride, onDelete, hideBadge = false }: Props) {
   const [swiped, setSwiped] = useState(false)
   const startX = useRef<number | null>(null)
 
@@ -62,15 +63,17 @@ export default function RideCard({ ride, onDelete }: Props) {
         </span>
 
         {/* Payment badge */}
-        <span
-          className={`shrink-0 rounded-full px-3 py-1 text-sm font-semibold ${
-            ride.payment_method === 'cash'
-              ? 'bg-[#3fb950]/20 text-[#3fb950]'
-              : 'bg-[#58a6ff]/20 text-[#58a6ff]'
-          }`}
-        >
-          {ride.payment_method === 'cash' ? 'Efectivo' : 'Tarjeta'}
-        </span>
+        {!hideBadge && (
+          <span
+            className={`shrink-0 rounded-full px-3 py-1 text-sm font-semibold ${
+              ride.payment_method === 'cash'
+                ? 'bg-[#3fb950]/20 text-[#3fb950]'
+                : 'bg-[#58a6ff]/20 text-[#58a6ff]'
+            }`}
+          >
+            {ride.payment_method === 'cash' ? 'Efectivo' : 'Tarjeta'}
+          </span>
+        )}
       </div>
 
       {/* Notes row */}

@@ -5,19 +5,20 @@ import toast from 'react-hot-toast'
 import NumericKeypad, { centsToDisplay } from '@/components/NumericKeypad'
 import PaymentMethodSelector from '@/components/PaymentMethodSelector'
 import { useRides } from '@/lib/hooks/useRides'
+import { useShift } from '@/lib/hooks/useShift'
 import { LAST_PAYMENT_KEY, todayISO } from '@/lib/utils'
 import type { PaymentMethod } from '@/types'
 
 export default function NuevaCarreraPage() {
-  const today = todayISO()
-  const { addRide } = useRides(today)
+  const { shift, startShift, endShift, mounted } = useShift()
+  const rideDate = shift?.startDate ?? todayISO()
+  const { addRide } = useRides(rideDate)
 
   const [cents, setCents] = useState(0)
   const [payment, setPayment] = useState<PaymentMethod | null>(null)
   const [notes, setNotes] = useState('')
   const [saving, setSaving] = useState(false)
 
-  // Restore last payment method
   useEffect(() => {
     const last = localStorage.getItem(LAST_PAYMENT_KEY()) as PaymentMethod | null
     if (last) setPayment(last)
@@ -49,6 +50,17 @@ export default function NuevaCarreraPage() {
     }
   }
 
+  function formatShiftStart(iso: string) {
+    return new Date(iso).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
+  }
+
+  function formatShiftDate(dateStr: string) {
+    const [y, m, d] = dateStr.split('-').map(Number)
+    return new Date(y, m - 1, d).toLocaleDateString('es-ES', {
+      weekday: 'long', day: 'numeric', month: 'long',
+    })
+  }
+
   return (
     <div className="flex flex-col gap-5 pt-6">
       {/* Header */}
@@ -58,6 +70,37 @@ export default function NuevaCarreraPage() {
           {new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}
         </p>
       </div>
+
+      {/* Shift banner */}
+      {mounted && (
+        shift ? (
+          <div className="mx-4 flex items-center justify-between rounded-2xl bg-[#3fb950]/10 border border-[#3fb950]/30 px-4 py-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-[#3fb950]">Turno activo</p>
+              <p className="text-sm text-[#f0f6fc]">
+                Desde las {formatShiftStart(shift.startedAt)} · {formatShiftDate(shift.startDate)}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={endShift}
+              className="rounded-xl bg-[#f85149]/20 px-3 py-2 text-xs font-semibold text-[#f85149] active:bg-[#f85149]/30"
+            >
+              Terminar
+            </button>
+          </div>
+        ) : (
+          <div className="mx-4">
+            <button
+              type="button"
+              onClick={startShift}
+              className="w-full rounded-2xl border border-[#3fb950]/40 bg-[#3fb950]/10 py-3 text-sm font-semibold text-[#3fb950] active:bg-[#3fb950]/20"
+            >
+              Empezar turno
+            </button>
+          </div>
+        )
+      )}
 
       {/* Payment method */}
       <PaymentMethodSelector value={payment} onChange={handlePaymentChange} />
