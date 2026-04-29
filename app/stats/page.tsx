@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import dynamic from 'next/dynamic'
 import { format, parseISO, addWeeks, subWeeks, addMonths, subMonths, addDays, subDays, isSameWeek, isSameMonth, isAfter, startOfDay } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -139,11 +139,22 @@ async function downloadWeekPDF(weekRides: Ride[], weekFrom: string, weekTo: stri
   doc.save(`faketaxi-semana-${weekFrom}.pdf`)
 }
 
+const SHIFT_KEY = 'ft_active_shift'
+
 export default function StatsPage() {
   const today = new Date()
   const [dayRef, setDayRef] = useState(todayISO())
   const [weekRef, setWeekRef] = useState(today)
   const [monthRef, setMonthRef] = useState(today)
+
+  // If there's an active shift, default the day view to the shift's start date
+  useEffect(() => {
+    const stored = localStorage.getItem(SHIFT_KEY)
+    if (stored) {
+      const shift = JSON.parse(stored) as { startDate: string }
+      setDayRef(shift.startDate)
+    }
+  }, [])
 
   const { rides: dayRides, isLoading: dayLoading } = useRides(dayRef)
   const isToday = dayRef === todayISO()
