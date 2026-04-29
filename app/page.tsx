@@ -16,8 +16,8 @@ export default function NuevaCarreraPage() {
 
   const [cents, setCents] = useState(0)
   const [payment, setPayment] = useState<PaymentMethod | null>(null)
-  const [notes, setNotes] = useState('')
   const [saving, setSaving] = useState(false)
+  const [confirm, setConfirm] = useState<'start' | 'end' | null>(null)
 
   useEffect(() => {
     const last = localStorage.getItem(LAST_PAYMENT_KEY()) as PaymentMethod | null
@@ -35,14 +35,9 @@ export default function NuevaCarreraPage() {
     if (!canSave || saving) return
     setSaving(true)
     try {
-      await addRide({
-        amount: cents / 100,
-        payment_method: payment!,
-        notes: notes.trim() || null,
-      })
+      await addRide({ amount: cents / 100, payment_method: payment!, notes: null })
       toast.success('Carrera guardada ✓')
       setCents(0)
-      setNotes('')
     } catch {
       toast.error('Error al guardar')
     } finally {
@@ -50,57 +45,55 @@ export default function NuevaCarreraPage() {
     }
   }
 
+  function handleConfirm() {
+    if (confirm === 'start') startShift()
+    else if (confirm === 'end') endShift()
+    setConfirm(null)
+  }
+
   function formatShiftStart(iso: string) {
     return new Date(iso).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
   }
 
-  function formatShiftDate(dateStr: string) {
-    const [y, m, d] = dateStr.split('-').map(Number)
-    return new Date(y, m - 1, d).toLocaleDateString('es-ES', {
-      weekday: 'long', day: 'numeric', month: 'long',
-    })
-  }
+  const shiftButton = mounted ? (
+    shift ? (
+      <button
+        type="button"
+        onClick={() => setConfirm('end')}
+        className="flex flex-col items-center justify-center gap-0.5 rounded-2xl bg-[#f85149]/20 text-[#f85149] active:bg-[#f85149]/30 active:scale-95 transition-all"
+        style={{ height: 64 }}
+      >
+        <span className="text-xl leading-none">■</span>
+        <span className="text-[10px] font-semibold leading-none">Turno</span>
+      </button>
+    ) : (
+      <button
+        type="button"
+        onClick={() => setConfirm('start')}
+        className="flex flex-col items-center justify-center gap-0.5 rounded-2xl bg-[#3fb950]/20 text-[#3fb950] active:bg-[#3fb950]/30 active:scale-95 transition-all"
+        style={{ height: 64 }}
+      >
+        <span className="text-xl leading-none">▶</span>
+        <span className="text-[10px] font-semibold leading-none">Turno</span>
+      </button>
+    )
+  ) : <div style={{ height: 64 }} />
 
   return (
     <div className="flex flex-col gap-5 pt-6">
       {/* Header */}
       <div className="px-4">
         <h1 className="text-2xl font-bold text-[#f0f6fc]">Nueva carrera</h1>
-        <p className="text-sm text-[#8b949e]">
-          {new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}
-        </p>
-      </div>
-
-      {/* Shift banner */}
-      {mounted && (
-        shift ? (
-          <div className="mx-4 flex items-center justify-between rounded-2xl bg-[#3fb950]/10 border border-[#3fb950]/30 px-4 py-3">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-[#3fb950]">Turno activo</p>
-              <p className="text-sm text-[#f0f6fc]">
-                Desde las {formatShiftStart(shift.startedAt)} · {formatShiftDate(shift.startDate)}
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={endShift}
-              className="rounded-xl bg-[#f85149]/20 px-3 py-2 text-xs font-semibold text-[#f85149] active:bg-[#f85149]/30"
-            >
-              Terminar
-            </button>
-          </div>
+        {mounted && shift ? (
+          <p className="text-sm text-[#3fb950]">
+            Turno activo desde las {formatShiftStart(shift.startedAt)}
+          </p>
         ) : (
-          <div className="mx-4">
-            <button
-              type="button"
-              onClick={startShift}
-              className="w-full rounded-2xl border border-[#3fb950]/40 bg-[#3fb950]/10 py-3 text-sm font-semibold text-[#3fb950] active:bg-[#3fb950]/20"
-            >
-              Empezar turno
-            </button>
-          </div>
-        )
-      )}
+          <p className="text-sm text-[#8b949e]">
+            {new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}
+          </p>
+        )}
+      </div>
 
       {/* Payment method */}
       <PaymentMethodSelector value={payment} onChange={handlePaymentChange} />
@@ -116,20 +109,8 @@ export default function NuevaCarreraPage() {
         </span>
       </div>
 
-      {/* Numeric keypad */}
-      <NumericKeypad cents={cents} onChange={setCents} />
-
-      {/* Notes field */}
-      <div className="px-4">
-        <input
-          type="text"
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          placeholder="Notas (opcional)"
-          maxLength={120}
-          className="w-full rounded-2xl bg-[#161b22] px-4 py-3 text-sm text-[#f0f6fc] placeholder-[#8b949e] outline-none focus:ring-2 focus:ring-[#f5c518]/40"
-        />
-      </div>
+      {/* Numeric keypad with shift button in bottom-left slot */}
+      <NumericKeypad cents={cents} onChange={setCents} leftSlot={shiftButton} />
 
       {/* Save button */}
       <div className="px-4 pb-4">
@@ -146,6 +127,42 @@ export default function NuevaCarreraPage() {
           {saving ? 'Guardando…' : 'Guardar carrera'}
         </button>
       </div>
+
+      {/* Confirmation modal */}
+      {confirm && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 pb-8 px-4">
+          <div className="w-full max-w-sm rounded-2xl bg-[#161b22] p-6">
+            <p className="mb-1 text-lg font-bold text-[#f0f6fc]">
+              {confirm === 'start' ? '¿Iniciar turno?' : '¿Terminar turno?'}
+            </p>
+            <p className="mb-6 text-sm text-[#8b949e]">
+              {confirm === 'start'
+                ? 'Las carreras de esta sesión se guardarán bajo la fecha de hoy.'
+                : 'El turno quedará cerrado. Podrás descargar el resumen en Stats.'}
+            </p>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setConfirm(null)}
+                className="flex-1 rounded-xl bg-[#21262d] py-3 font-semibold text-[#8b949e] active:bg-[#30363d]"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirm}
+                className={`flex-1 rounded-xl py-3 font-semibold ${
+                  confirm === 'start'
+                    ? 'bg-[#3fb950] text-black'
+                    : 'bg-[#f85149] text-white'
+                }`}
+              >
+                {confirm === 'start' ? 'Iniciar' : 'Terminar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

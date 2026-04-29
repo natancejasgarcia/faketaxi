@@ -4,11 +4,12 @@ interface Props {
   cents: number
   onChange: (cents: number) => void
   maxCents?: number
+  leftSlot?: React.ReactNode
 }
 
 const MAX_CENTS = 999999 // 9999.99 €
 
-export default function NumericKeypad({ cents, onChange, maxCents = MAX_CENTS }: Props) {
+export default function NumericKeypad({ cents, onChange, maxCents = MAX_CENTS, leftSlot }: Props) {
   function press(digit: number) {
     const next = cents * 10 + digit
     if (next <= maxCents) onChange(next)
@@ -34,8 +35,8 @@ export default function NumericKeypad({ cents, onChange, maxCents = MAX_CENTS }:
         </button>
       ))}
 
-      {/* Bottom row: empty | 0 | backspace */}
-      <div />
+      {/* Bottom row: leftSlot | 0 | backspace */}
+      {leftSlot ?? <div />}
 
       <button
         type="button"
