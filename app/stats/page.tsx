@@ -1,19 +1,16 @@
 'use client'
 
+import { useState } from 'react'
 import dynamic from 'next/dynamic'
-import { format, parseISO } from 'date-fns'
+import { format, parseISO, addWeeks, subWeeks, addMonths, subMonths, isSameWeek, isSameMonth } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { useStats } from '@/lib/hooks/useStats'
+import { useWeekStats, useMonthStats } from '@/lib/hooks/useStats'
 import { formatAmount, formatTime } from '@/lib/utils'
 import type { Ride } from '@/types'
 
 const WeeklyChart = dynamic(() => import('@/components/WeeklyChart'), { ssr: false })
 
-async function downloadWeekPDF(
-  weekRides: Ride[],
-  weekFrom: string,
-  weekTo: string
-) {
+async function downloadWeekPDF(weekRides: Ride[], weekFrom: string, weekTo: string) {
   const { default: jsPDF } = await import('jspdf')
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
 
@@ -32,14 +29,12 @@ async function downloadWeekPDF(
 
   let y = 38
 
-  // Group rides by date
   const byDate = new Map<string, Ride[]>()
   for (const ride of weekRides) {
     if (!byDate.has(ride.date)) byDate.set(ride.date, [])
     byDate.get(ride.date)!.push(ride)
   }
 
-  // Sort days
   const sortedDays = Array.from(byDate.entries()).sort(([a], [b]) => a.localeCompare(b))
 
   for (const [date, rides] of sortedDays) {
@@ -73,13 +68,11 @@ async function downloadWeekPDF(
       y += 7
     }
 
-    // Day divider
     doc.setDrawColor(200)
     doc.line(14, y, 196, y)
     y += 6
   }
 
-  // Week total
   const weekTotal = weekRides.reduce((s, r) => s + Number(r.amount), 0)
   if (y > 265) { doc.addPage(); y = 20 }
   doc.setFont('helvetica', 'bold')
@@ -90,10 +83,24 @@ async function downloadWeekPDF(
 }
 
 export default function StatsPage() {
-  const { weekStats, weekRides, monthStats, week, month, isLoading } = useStats(new Date())
+  const today = new Date()
+  const [weekRef, setWeekRef] = useState(today)
+  const [monthRef, setMonthRef] = useState(today)
+
+  const { weekStats, weekRides, week, isLoading: weekLoading } = useWeekStats(weekRef)
+  const { monthStats, month, isLoading: monthLoading } = useMonthStats(monthRef)
 
   const weekTotal = weekStats.reduce((s, d) => s + d.total_amount, 0)
   const weekRidesCount = weekStats.reduce((s, d) => s + d.total_rides, 0)
+
+  const isCurrentWeek = isSameWeek(weekRef, today, { weekStartsOn: 1 })
+  const isCurrentMonth = isSameMonth(monthRef, today)
+
+  const weekLabel = (() => {
+    const from = format(parseISO(week.from), 'd MMM', { locale: es })
+    const to = format(parseISO(week.to), 'd MMM', { locale: es })
+    return isCurrentWeek ? 'Esta semana' : `${from} – ${to}`
+  })()
 
   return (
     <div className="flex flex-col gap-5 pt-6 pb-4">
@@ -101,27 +108,57 @@ export default function StatsPage() {
         <h1 className="text-2xl font-bold text-[#f0f6fc]">Estadísticas</h1>
       </div>
 
-      {/* Weekly bar chart */}
+      {/* Weekly section */}
       <div className="mx-4 rounded-2xl bg-[#161b22] p-4">
-        <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-[#8b949e]">
-          Esta semana
-        </p>
+        {/* Week navigator */}
+        <div className="mb-3 flex items-center justify-between">
+          <button
+            type="button"
+            onClick={() => setWeekRef((d) => subWeeks(d, 1))}
+            className="flex h-8 w-8 items-center justify-center rounded-full bg-[#21262d] text-lg text-[#f0f6fc] active:bg-[#30363d]"
+          >
+            ‹
+          </button>
+          <button
+            type="button"
+            onClick={() => setWeekRef(today)}
+            className="flex flex-col items-center"
+          >
+            <span className="text-xs font-semibold uppercase tracking-wide text-[#8b949e]">
+              {weekLabel}
+            </span>
+            {!isCurrentWeek && (
+              <span className="text-xs text-[#f5c518]">Toca para ir a hoy</span>
+            )}
+          </button>
+          <button
+            type="button"
+            onClick={() => setWeekRef((d) => addWeeks(d, 1))}
+            disabled={isCurrentWeek}
+            className={`flex h-8 w-8 items-center justify-center rounded-full text-lg text-[#f0f6fc] transition-opacity ${
+              isCurrentWeek ? 'opacity-20' : 'bg-[#21262d] active:bg-[#30363d]'
+            }`}
+          >
+            ›
+          </button>
+        </div>
+
         <p className="mb-4 text-2xl font-bold text-[#f5c518]">
-          {isLoading ? '…' : formatAmount(weekTotal)}
+          {weekLoading ? '…' : formatAmount(weekTotal)}
           <span className="ml-2 text-sm font-normal text-[#8b949e]">
             {weekRidesCount} carreras
           </span>
         </p>
-        {isLoading ? (
+
+        {weekLoading ? (
           <div className="h-44 animate-pulse rounded-xl bg-[#21262d]" />
         ) : (
           <WeeklyChart data={weekStats} />
         )}
 
-        {/* PDF download button */}
         <button
           type="button"
-          disabled={isLoading || weekRides.length === 0}
+          disabled={weekLoading || weekRides.length === 0}
           onClick={() => downloadWeekPDF(weekRides, week.from, week.to)}
           className={`mt-4 w-full rounded-xl py-3 text-sm font-semibold transition-all active:scale-[0.98] ${
             weekRides.length > 0
@@ -133,12 +170,42 @@ export default function StatsPage() {
         </button>
       </div>
 
-      {/* Monthly summary */}
+      {/* Monthly section */}
       <div className="mx-4 rounded-2xl bg-[#161b22] p-4">
-        <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-[#8b949e]">
-          {format(new Date(), 'MMMM yyyy', { locale: es })}
-        </p>
-        {isLoading || !monthStats ? (
+        {/* Month navigator */}
+        <div className="mb-3 flex items-center justify-between">
+          <button
+            type="button"
+            onClick={() => setMonthRef((d) => subMonths(d, 1))}
+            className="flex h-8 w-8 items-center justify-center rounded-full bg-[#21262d] text-lg text-[#f0f6fc] active:bg-[#30363d]"
+          >
+            ‹
+          </button>
+          <button
+            type="button"
+            onClick={() => setMonthRef(today)}
+            className="flex flex-col items-center"
+          >
+            <span className="text-xs font-semibold uppercase tracking-wide text-[#8b949e] capitalize">
+              {format(monthRef, 'MMMM yyyy', { locale: es })}
+            </span>
+            {!isCurrentMonth && (
+              <span className="text-xs text-[#f5c518]">Toca para ir a hoy</span>
+            )}
+          </button>
+          <button
+            type="button"
+            onClick={() => setMonthRef((d) => addMonths(d, 1))}
+            disabled={isCurrentMonth}
+            className={`flex h-8 w-8 items-center justify-center rounded-full text-lg text-[#f0f6fc] transition-opacity ${
+              isCurrentMonth ? 'opacity-20' : 'bg-[#21262d] active:bg-[#30363d]'
+            }`}
+          >
+            ›
+          </button>
+        </div>
+
+        {monthLoading || !monthStats ? (
           <div className="h-24 animate-pulse rounded-xl bg-[#21262d]" />
         ) : (
           <>

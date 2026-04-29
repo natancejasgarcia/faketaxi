@@ -12,19 +12,12 @@ function computeMonthStats(rides: Ride[]) {
   return { total, cash, card, count: rides.length }
 }
 
-export function useStats(referenceDate: Date = new Date()) {
-  const week = getWeekRange(referenceDate)
-  const month = getMonthRange(referenceDate)
+export function useWeekStats(weekDate: Date) {
+  const week = getWeekRange(weekDate)
 
-  const { data: weekRides, isLoading: weekLoading } = useSWR<Ride[]>(
+  const { data: weekRides, isLoading } = useSWR<Ride[]>(
     `rides-week-${week.from}`,
     () => fetchRidesInRange(week.from, week.to),
-    { revalidateOnFocus: false }
-  )
-
-  const { data: monthRides, isLoading: monthLoading } = useSWR<Ride[]>(
-    `rides-month-${month.from}`,
-    () => fetchRidesInRange(month.from, month.to),
     { revalidateOnFocus: false }
   )
 
@@ -32,14 +25,36 @@ export function useStats(referenceDate: Date = new Date()) {
     ? buildWeekStats(weekRides, week.from, week.to)
     : []
 
-  const monthStats = monthRides ? computeMonthStats(monthRides) : null
-
   return {
     weekStats,
     weekRides: weekRides ?? [],
-    monthStats,
     week,
-    month,
-    isLoading: weekLoading || monthLoading,
+    isLoading,
+  }
+}
+
+export function useMonthStats(monthDate: Date) {
+  const month = getMonthRange(monthDate)
+
+  const { data: monthRides, isLoading } = useSWR<Ride[]>(
+    `rides-month-${month.from}`,
+    () => fetchRidesInRange(month.from, month.to),
+    { revalidateOnFocus: false }
+  )
+
+  const monthStats = monthRides ? computeMonthStats(monthRides) : null
+
+  return { monthStats, month, isLoading }
+}
+
+// Keep original export for backwards compat
+export function useStats(referenceDate: Date = new Date()) {
+  const weekResult = useWeekStats(referenceDate)
+  const monthResult = useMonthStats(referenceDate)
+
+  return {
+    ...weekResult,
+    ...monthResult,
+    isLoading: weekResult.isLoading || monthResult.isLoading,
   }
 }
