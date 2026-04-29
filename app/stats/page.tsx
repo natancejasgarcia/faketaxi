@@ -2,13 +2,70 @@
 
 import { useState } from 'react'
 import dynamic from 'next/dynamic'
-import { format, parseISO, addWeeks, subWeeks, addMonths, subMonths, isSameWeek, isSameMonth } from 'date-fns'
+import { format, parseISO, addWeeks, subWeeks, addMonths, subMonths, addDays, subDays, isSameWeek, isSameMonth, isAfter, startOfDay } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { useWeekStats, useMonthStats } from '@/lib/hooks/useStats'
-import { formatAmount, formatTime } from '@/lib/utils'
+import { useRides } from '@/lib/hooks/useRides'
+import { formatAmount, formatTime, todayISO, formatDateLabel } from '@/lib/utils'
 import type { Ride } from '@/types'
 
 const WeeklyChart = dynamic(() => import('@/components/WeeklyChart'), { ssr: false })
+
+async function downloadDayPDF(rides: Ride[], date: string) {
+  const { default: jsPDF } = await import('jspdf')
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+
+  const dayLabel = format(parseISO(date), "EEEE d 'de' MMMM 'de' yyyy", { locale: es })
+
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(18)
+  doc.text('FakeTaxi – Resumen del día', 14, 20)
+
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(11)
+  doc.setTextColor(120)
+  doc.text(dayLabel.charAt(0).toUpperCase() + dayLabel.slice(1), 14, 28)
+  doc.setTextColor(0)
+
+  let y = 40
+
+  const cashRides = rides.filter((r) => r.payment_method === 'cash')
+  const cardRides = rides.filter((r) => r.payment_method !== 'cash')
+  const total = rides.reduce((s, r) => s + Number(r.amount), 0)
+  const cashTotal = cashRides.reduce((s, r) => s + Number(r.amount), 0)
+  const cardTotal = cardRides.reduce((s, r) => s + Number(r.amount), 0)
+
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(13)
+  doc.text(`Total: ${formatAmount(total)}`, 14, y)
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(10)
+  doc.setTextColor(80)
+  doc.text(`${rides.length} carreras  ·  Efectivo: ${formatAmount(cashTotal)}  ·  Tarjeta: ${formatAmount(cardTotal)}`, 14, y + 7)
+  doc.setTextColor(0)
+  y += 18
+
+  doc.setDrawColor(200)
+  doc.line(14, y, 196, y)
+  y += 8
+
+  for (const ride of [...rides].sort((a, b) => a.created_at.localeCompare(b.created_at))) {
+    if (y > 270) { doc.addPage(); y = 20 }
+    const payment = ride.payment_method === 'cash' ? 'Efectivo' : 'Tarjeta'
+    const notes = ride.notes ? `  ${ride.notes}` : ''
+    doc.setFontSize(10)
+    doc.text(formatTime(ride.created_at), 18, y)
+    doc.setFont('helvetica', 'bold')
+    doc.text(formatAmount(Number(ride.amount)), 38, y)
+    doc.setFont('helvetica', 'normal')
+    doc.setTextColor(100)
+    doc.text(`${payment}${notes}`, 70, y)
+    doc.setTextColor(0)
+    y += 7
+  }
+
+  doc.save(`faketaxi-dia-${date}.pdf`)
+}
 
 async function downloadWeekPDF(weekRides: Ride[], weekFrom: string, weekTo: string) {
   const { default: jsPDF } = await import('jspdf')
@@ -84,8 +141,12 @@ async function downloadWeekPDF(weekRides: Ride[], weekFrom: string, weekTo: stri
 
 export default function StatsPage() {
   const today = new Date()
+  const [dayRef, setDayRef] = useState(todayISO())
   const [weekRef, setWeekRef] = useState(today)
   const [monthRef, setMonthRef] = useState(today)
+
+  const { rides: dayRides, isLoading: dayLoading } = useRides(dayRef)
+  const isToday = dayRef === todayISO()
 
   const { weekStats, weekRides, week, isLoading: weekLoading } = useWeekStats(weekRef)
   const { monthStats, month, isLoading: monthLoading } = useMonthStats(monthRef)
@@ -106,6 +167,87 @@ export default function StatsPage() {
     <div className="flex flex-col gap-5 pt-6 pb-4">
       <div className="px-4">
         <h1 className="text-2xl font-bold text-[#f0f6fc]">Estadísticas</h1>
+      </div>
+
+      {/* Daily section */}
+      <div className="mx-4 rounded-2xl bg-[#161b22] p-4">
+        {/* Day navigator */}
+        <div className="mb-3 flex items-center justify-between">
+          <button
+            type="button"
+            onClick={() => setDayRef(format(subDays(parseISO(dayRef), 1), 'yyyy-MM-dd'))}
+            className="flex h-8 w-8 items-center justify-center rounded-full bg-[#21262d] text-lg text-[#f0f6fc] active:bg-[#30363d]"
+          >
+            ‹
+          </button>
+          <button
+            type="button"
+            onClick={() => setDayRef(todayISO())}
+            className="flex flex-col items-center"
+          >
+            <span className="text-xs font-semibold uppercase tracking-wide text-[#8b949e] capitalize">
+              {formatDateLabel(dayRef)}
+            </span>
+            {!isToday && (
+              <span className="text-xs text-[#f5c518]">Toca para ir a hoy</span>
+            )}
+          </button>
+          <button
+            type="button"
+            onClick={() => setDayRef(format(addDays(parseISO(dayRef), 1), 'yyyy-MM-dd'))}
+            disabled={isToday}
+            className={`flex h-8 w-8 items-center justify-center rounded-full text-lg text-[#f0f6fc] transition-opacity ${
+              isToday ? 'opacity-20' : 'bg-[#21262d] active:bg-[#30363d]'
+            }`}
+          >
+            ›
+          </button>
+        </div>
+
+        {dayLoading ? (
+          <div className="h-20 animate-pulse rounded-xl bg-[#21262d]" />
+        ) : (
+          <>
+            {dayRides.length === 0 ? (
+              <p className="py-4 text-center text-sm text-[#8b949e]">Sin carreras este día</p>
+            ) : (
+              <>
+                {(() => {
+                  const total = dayRides.reduce((s, r) => s + Number(r.amount), 0)
+                  const cash = dayRides.filter((r) => r.payment_method === 'cash').reduce((s, r) => s + Number(r.amount), 0)
+                  const card = dayRides.filter((r) => r.payment_method !== 'cash').reduce((s, r) => s + Number(r.amount), 0)
+                  return (
+                    <>
+                      <p className="mb-3 text-2xl font-bold text-[#f5c518]">
+                        {formatAmount(total)}
+                        <span className="ml-2 text-sm font-normal text-[#8b949e]">
+                          {dayRides.length} carreras
+                        </span>
+                      </p>
+                      <CashCardBar total={total} cash={cash} card={card} />
+                      <div className="mt-3 grid grid-cols-2 gap-3">
+                        <MiniStat label="Efectivo" value={formatAmount(cash)} color="green" />
+                        <MiniStat label="Tarjeta" value={formatAmount(card)} color="blue" />
+                      </div>
+                    </>
+                  )
+                })()}
+              </>
+            )}
+            <button
+              type="button"
+              disabled={dayRides.length === 0}
+              onClick={() => downloadDayPDF(dayRides, dayRef)}
+              className={`mt-4 w-full rounded-xl py-3 text-sm font-semibold transition-all active:scale-[0.98] ${
+                dayRides.length > 0
+                  ? 'bg-[#f5c518] text-[#0d1117]'
+                  : 'bg-[#21262d] text-[#30363d]'
+              }`}
+            >
+              Descargar PDF del día
+            </button>
+          </>
+        )}
       </div>
 
       {/* Weekly section */}
