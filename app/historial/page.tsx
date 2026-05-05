@@ -112,7 +112,6 @@ export default function HistorialPage() {
               <span className="text-sm text-[#8b949e]">km</span>
               <button
                 type="button"
-                onPointerDown={(e) => e.preventDefault()}
                 onClick={handleKmSave}
                 className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#3fb950] text-white font-bold"
               >

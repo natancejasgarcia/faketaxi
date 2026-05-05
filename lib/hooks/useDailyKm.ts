@@ -13,17 +13,9 @@ export function useDailyKm(date: string) {
   )
 
   async function setKm(km: number) {
-    await mutate(
-      async () => {
-        await upsertDailyKm(date, km)
-        return km
-      },
-      {
-        optimisticData: km,
-        rollbackOnError: true,
-        revalidate: false,
-      }
-    )
+    // Update cache optimistically, then upsert, then revalidate
+    await mutate(km, { revalidate: false })
+    await upsertDailyKm(date, km)
   }
 
   return {
