@@ -79,7 +79,7 @@ export async function fetchDailyKm(date: string): Promise<number | null> {
 export async function upsertDailyKm(date: string, km: number): Promise<void> {
   const { error } = await supabase
     .from('daily_km')
-    .upsert({ date, km, updated_at: new Date().toISOString() }, { onConflict: 'date' })
+    .upsert({ date, km }, { onConflict: 'date' })
 
   if (error) throw error
 }

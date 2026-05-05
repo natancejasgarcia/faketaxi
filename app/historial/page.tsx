@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import toast from 'react-hot-toast'
 import { todayISO } from '@/lib/utils'
 import { useRides } from '@/lib/hooks/useRides'
@@ -26,6 +26,7 @@ export default function HistorialPage() {
   // km inline edit
   const [kmEditing, setKmEditing] = useState(false)
   const [kmInput, setKmInput] = useState('')
+  const kmSavingRef = useRef(false)
 
   function openKmEdit() {
     setKmInput(km !== null ? String(km) : '')
@@ -33,6 +34,8 @@ export default function HistorialPage() {
   }
 
   async function handleKmSave() {
+    if (kmSavingRef.current || !kmEditing) return
+    kmSavingRef.current = true
     setKmEditing(false)
     const val = parseFloat(kmInput.replace(',', '.'))
     if (!isNaN(val) && val >= 0) {
@@ -42,6 +45,7 @@ export default function HistorialPage() {
         toast.error('Error al guardar km')
       }
     }
+    kmSavingRef.current = false
   }
 
   async function confirmDelete() {
@@ -93,17 +97,28 @@ export default function HistorialPage() {
         <div className="flex items-center gap-3 rounded-2xl bg-[#161b22] px-4 py-3">
           <span className="shrink-0 text-sm text-[#8b949e]">Km del día</span>
           {kmEditing ? (
-            <input
-              type="number"
-              inputMode="decimal"
-              autoFocus
-              value={kmInput}
-              onChange={(e) => setKmInput(e.target.value)}
-              onBlur={handleKmSave}
-              onKeyDown={(e) => e.key === 'Enter' && handleKmSave()}
-              className="flex-1 bg-transparent text-right text-lg font-bold text-[#f0f6fc] outline-none"
-              placeholder="0"
-            />
+            <>
+              <input
+                type="number"
+                inputMode="decimal"
+                autoFocus
+                value={kmInput}
+                onChange={(e) => setKmInput(e.target.value)}
+                onBlur={handleKmSave}
+                onKeyDown={(e) => e.key === 'Enter' && handleKmSave()}
+                className="flex-1 bg-transparent text-right text-lg font-bold text-[#f0f6fc] outline-none"
+                placeholder="0"
+              />
+              <span className="text-sm text-[#8b949e]">km</span>
+              <button
+                type="button"
+                onPointerDown={(e) => e.preventDefault()}
+                onClick={handleKmSave}
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#3fb950] text-white font-bold"
+              >
+                ✓
+              </button>
+            </>
           ) : (
             <button
               type="button"
