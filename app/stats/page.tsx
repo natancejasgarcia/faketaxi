@@ -6,6 +6,7 @@ import { format, parseISO, addWeeks, subWeeks, addMonths, subMonths, addDays, su
 import { es } from 'date-fns/locale'
 import { useWeekStats, useMonthStats } from '@/lib/hooks/useStats'
 import { useRides } from '@/lib/hooks/useRides'
+import { useDailyKm } from '@/lib/hooks/useDailyKm'
 import { formatAmount, formatTime, todayISO, formatDateLabel } from '@/lib/utils'
 import type { Ride } from '@/types'
 
@@ -157,6 +158,7 @@ export default function StatsPage() {
   }, [])
 
   const { rides: dayRides, isLoading: dayLoading } = useRides(dayRef)
+  const { km: dayKm } = useDailyKm(dayRef)
   const isToday = dayRef === todayISO()
 
   const { weekStats, weekRides, week, isLoading: weekLoading } = useWeekStats(weekRef)
@@ -240,6 +242,12 @@ export default function StatsPage() {
                         <MiniStat label="Efectivo" value={formatAmount(cash)} color="green" />
                         <MiniStat label="Tarjeta" value={formatAmount(card)} color="blue" />
                       </div>
+                      {dayKm !== null && (
+                        <div className="mt-3 rounded-xl bg-[#21262d] px-4 py-3 flex items-center justify-between">
+                          <span className="text-xs text-[#8b949e]">Km del día</span>
+                          <span className="text-lg font-bold text-[#f0f6fc]">{dayKm} km</span>
+                        </div>
+                      )}
                     </>
                   )
                 })()}

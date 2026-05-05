@@ -23,3 +23,8 @@ export interface WeekStat {
 }
 
 export type PaymentMethod = 'cash' | 'card'
+
+export interface DailyKm {
+  date: string
+  km: number
+}

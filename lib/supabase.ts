@@ -49,6 +49,41 @@ export async function deleteRide(id: string): Promise<void> {
   if (error) throw error
 }
 
+export async function updateRide(id: string, updates: {
+  amount?: number
+  payment_method?: 'cash' | 'card'
+  notes?: string | null
+}): Promise<Ride> {
+  const { data, error } = await supabase
+    .from('rides')
+    .update(updates)
+    .eq('id', id)
+    .select()
+    .single()
+
+  if (error) throw error
+  return data
+}
+
+export async function fetchDailyKm(date: string): Promise<number | null> {
+  const { data, error } = await supabase
+    .from('daily_km')
+    .select('km')
+    .eq('date', date)
+    .single()
+
+  if (error && error.code !== 'PGRST116') throw error
+  return data ? Number(data.km) : null
+}
+
+export async function upsertDailyKm(date: string, km: number): Promise<void> {
+  const { error } = await supabase
+    .from('daily_km')
+    .upsert({ date, km, updated_at: new Date().toISOString() }, { onConflict: 'date' })
+
+  if (error) throw error
+}
+
 export async function fetchRidesInRange(from: string, to: string): Promise<Ride[]> {
   const { data, error } = await supabase
     .from('rides')

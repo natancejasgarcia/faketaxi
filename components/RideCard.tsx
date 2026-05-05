@@ -7,10 +7,11 @@ import { formatTime, formatAmount } from '@/lib/utils'
 interface Props {
   ride: Ride
   onDelete: (id: string) => void
+  onEdit: (ride: Ride) => void
   hideBadge?: boolean
 }
 
-export default function RideCard({ ride, onDelete, hideBadge = false }: Props) {
+export default function RideCard({ ride, onDelete, onEdit, hideBadge = false }: Props) {
   const [swiped, setSwiped] = useState(false)
   const startX = useRef<number | null>(null)
 
@@ -28,16 +29,23 @@ export default function RideCard({ ride, onDelete, hideBadge = false }: Props) {
 
   return (
     <div className="relative overflow-hidden rounded-2xl">
-      {/* Delete button revealed on swipe */}
+      {/* Edit + Delete buttons revealed on swipe */}
       <div
-        className={`absolute inset-y-0 right-0 flex items-center justify-center bg-[#f85149] transition-all duration-200 ${
-          swiped ? 'w-20 opacity-100' : 'w-0 opacity-0'
+        className={`absolute inset-y-0 right-0 flex items-stretch transition-all duration-200 ${
+          swiped ? 'w-32 opacity-100' : 'w-0 opacity-0'
         }`}
       >
         <button
           type="button"
+          onClick={() => { setSwiped(false); onEdit(ride) }}
+          className="flex flex-1 items-center justify-center bg-[#58a6ff] text-white text-sm font-semibold"
+        >
+          Editar
+        </button>
+        <button
+          type="button"
           onClick={() => onDelete(ride.id)}
-          className="flex h-full w-20 items-center justify-center text-white font-semibold text-sm"
+          className="flex flex-1 items-center justify-center bg-[#f85149] text-white text-sm font-semibold"
         >
           Borrar
         </button>
@@ -49,7 +57,7 @@ export default function RideCard({ ride, onDelete, hideBadge = false }: Props) {
         onTouchEnd={handleTouchEnd}
         onClick={() => swiped && setSwiped(false)}
         className={`flex items-center gap-3 rounded-2xl bg-[#161b22] p-4 transition-transform duration-200 ${
-          swiped ? '-translate-x-20' : 'translate-x-0'
+          swiped ? '-translate-x-32' : 'translate-x-0'
         }`}
       >
         {/* Time */}
@@ -80,7 +88,7 @@ export default function RideCard({ ride, onDelete, hideBadge = false }: Props) {
       {ride.notes && (
         <div
           className={`-mt-1 rounded-b-2xl bg-[#161b22] px-4 pb-3 text-sm text-[#8b949e] transition-transform duration-200 ${
-            swiped ? '-translate-x-20' : 'translate-x-0'
+            swiped ? '-translate-x-32' : 'translate-x-0'
           }`}
         >
           {ride.notes}

@@ -1,7 +1,7 @@
 'use client'
 
 import useSWR from 'swr'
-import { fetchRidesByDate, insertRide, deleteRide } from '@/lib/supabase'
+import { fetchRidesByDate, insertRide, deleteRide, updateRide } from '@/lib/supabase'
 import type { Ride, PaymentMethod } from '@/types'
 
 export function useRides(date: string) {
@@ -40,6 +40,21 @@ export function useRides(date: string) {
     )
   }
 
+  async function editRide(id: string, updates: { amount?: number; payment_method?: PaymentMethod }) {
+    await mutate(
+      async (current = []) => {
+        const updated = await updateRide(id, updates)
+        return (current ?? []).map((r) => (r.id === id ? updated : r))
+      },
+      {
+        optimisticData: (current = []) =>
+          (current ?? []).map((r) => (r.id === id ? { ...r, ...updates } : r)),
+        rollbackOnError: true,
+        revalidate: false,
+      }
+    )
+  }
+
   async function removeRide(id: string) {
     await mutate(
       async (current = []) => {
@@ -59,6 +74,7 @@ export function useRides(date: string) {
     isLoading,
     error,
     addRide,
+    editRide,
     removeRide,
     mutate,
   }
